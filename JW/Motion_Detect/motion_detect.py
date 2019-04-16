@@ -6,7 +6,7 @@ from imutils.video import VideoStream
 import argparse
 import datetime
 import imutils
-
+import pymysql
 class MotionDetect:
     fallDownCheck = False
     ap = argparse.ArgumentParser()
