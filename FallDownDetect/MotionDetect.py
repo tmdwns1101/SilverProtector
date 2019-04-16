@@ -58,6 +58,9 @@ class MotionDetect:
 
             if end - start >= 10 and self.noObjectFlag is True:
                 print("Object MiSS!!!")
+                time.sleep(1) #업데이트 되기전 접근 방지를 위해  n초(1~10) 정도 프로그램(영상)을 멈춤
+                #데이터베이스 접근 후 userMiss 가 False이면 update(스레드로 동작)
+                #아니면(update가 되었으면) 그냥 continue
 
             # if the frame could not be grabbed, then we have reached the end
             # of the video
