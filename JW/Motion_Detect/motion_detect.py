@@ -6,7 +6,15 @@ from imutils.video import VideoStream
 import argparse
 import datetime
 import imutils
-import pymysql
+
+#import pymysql.cursors
+
+#conn = pymysql.connect(host='localhost',
+#                       user='user',
+#                       password=None,
+#                       db='test',
+#                       charset='utf8mb4')
+
 class MotionDetect:
     fallDownCheck = False
     ap = argparse.ArgumentParser()
@@ -25,6 +33,14 @@ class MotionDetect:
             if end - start >= limit:
                 print("Warning!")
                 self.fallDownCheck = False
+
+                # try:
+                #    with conn.cursor() as cursor:
+                #        sql = 'UPDATE fallDownCheck = %s WHERE fallDown = %s'
+                #        cursor.execute(sql, ('true', 'false'))
+                #    conn.commit()
+                #    print(cursor.rowcount)  # 1 (affected rows)
+
                 break
 
     def ObjectDetector(self):
@@ -58,6 +74,13 @@ class MotionDetect:
 
             if end - start >= 10 and self.noObjectFlag is True:
                 print("Object MiSS!!!")
+                #실종 update
+                #try:
+                #    with conn.cursor() as cursor:
+                #        sql = 'UPDATE occupied = %s WHERE Occupied = %s'
+                #        cursor.execute(sql, ('true', 'false'))
+                #    conn.commit()
+                #    print(cursor.rowcount)  # 1 (affected rows)
 
             # if the frame could not be grabbed, then we have reached the end
             # of the video
@@ -104,6 +127,14 @@ class MotionDetect:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 self.noObjectFlag = False
 
+                #확인됨
+                # try:
+                #    with conn.cursor() as cursor:
+                #        sql = 'UPDATE occupied = %s WHERE Occupied = %s'
+                #        cursor.execute(sql, ('false', 'true'))
+                #    conn.commit()
+                #    print(cursor.rowcount)  # 1 (affected rows)
+
                 text = "Occupied"
                 # test1
                 if h > 1.3 * w:
@@ -114,6 +145,14 @@ class MotionDetect:
 
                         if self.fallDownCheck is False:
                             self.fallDownCheck = True
+
+                            # try:
+                            #    with conn.cursor() as cursor:
+                            #        sql = 'UPDATE fallDownCheck = %s WHERE fallDown = %s'
+                            #        cursor.execute(sql, ('false', 'true'))
+                            #    conn.commit()
+                            #    print(cursor.rowcount)  # 1 (affected rows)
+
                             mythread = threading.Thread(target=self.Timer, args=(5, ))
                             mythread.daemon = True
                             mythread.start()
