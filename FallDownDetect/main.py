@@ -1,7 +1,6 @@
-
 from FallDownDetect.MotionDetect import MotionDetect
 import cv2
-
+from util.ReadDeviecID import deviceIDRead
 
 cam = cv2.VideoCapture(0)
 cam.set(3, 1280)  # CV_CAP_PROP_FRAME_WIDTH
@@ -12,8 +11,9 @@ def main():
     #time.sleep(3)
     #NullCamera()
     #MotionDetect(fallDownChecker)
+    deviceID = deviceIDRead()
 
-    detect = MotionDetect(cam)
+    detect = MotionDetect(cam, deviceID)
     detect.ObjectDetector()
 
 

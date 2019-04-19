@@ -6,17 +6,25 @@ from imutils.video import VideoStream
 import argparse
 import datetime
 import imutils
+from devieceinfo.DeviceInfoDAO import *
+from userinfo.UserInfoDAO import *
+
 
 class MotionDetect:
+
     fallDownCheck = False
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--video", help="path to the video file")
-    ap.add_argument("-a", "--min-area", type=int, default=1000, help="minimum area size")  # defualt= 500
+    ap.add_argument("-a", "--min-area", type=int, default=2000, help="minimum area size")  # defualt= 500
     args = vars(ap.parse_args())
     noObjectFlag = False
 
-    def __init__(self, cam):
+    def __init__(self, cam, deviceID):
         self.ret, self.frame = cam.read()
+        self.deviceID = deviceID
+        self.deviceDAO = DeviceInfoDAO()
+        self.userID = self.deviceDAO.getUserID(self.deviceID)
+        self.userDAO = UserInfoDAO()
 
     def Timer(self, limit):
         start = time.time()
@@ -25,6 +33,8 @@ class MotionDetect:
             if end - start >= limit:
                 print("Warning!")
                 self.fallDownCheck = False
+                self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
+
                 break
 
     def ObjectDetector(self):
@@ -40,10 +50,12 @@ class MotionDetect:
 
         # initialize the first frame in the video stream
         firstFrame = None
+        print(self.userID)
 
         # loop over the frames of the video
         while True:
-            print(self.fallDownCheck)
+            #print(self.fallDownCheck)
+
 
             # grab the current frame and initialize the occupied/unoccupied
             # text
@@ -58,9 +70,7 @@ class MotionDetect:
 
             if end - start >= 10 and self.noObjectFlag is True:
                 print("Object MiSS!!!")
-                time.sleep(1) #업데이트 되기전 접근 방지를 위해  n초(1~10) 정도 프로그램(영상)을 멈춤
-                #데이터베이스 접근 후 userMiss 가 False이면 update(스레드로 동작)
-                #아니면(update가 되었으면) 그냥 continue
+                self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
 
             # if the frame could not be grabbed, then we have reached the end
             # of the video
@@ -105,26 +115,39 @@ class MotionDetect:
                 # and update the text
                 (x, y, w, h) = cv2.boundingRect(c)
                 #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                if self.noObjectFlag is True:
+                    self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
+
                 self.noObjectFlag = False
+
+
 
                 text = "Occupied"
                 # test1
                 if h > 1.3 * w:
                     str = "standing"
+                    self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
+                    self.fallDownCheck = False
                 else:
                     if w > 1.3 * h:
                         str = "laying"
-
                         if self.fallDownCheck is False:
                             self.fallDownCheck = True
-                            mythread = threading.Thread(target=self.Timer, args=(5, ))
-                            mythread.daemon = True
-                            mythread.start()
+                            fallstart = time.time()
+                            #mythread = threading.Thread(target=self.Timer, args=(5, ))
+                            #mythread.daemon = True
+                            #mythread.start()
+                        fallend = time.time()
+                        if fallend - fallstart >= 5:
+                            print("Warning!")
+                            self.fallDownCheck = False
+                            self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
+
                     else:
                         if w:
+                            self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
+                            self.fallDownCheck = False
                             str = "sitting"
-                        else:
-                            str = "nobody"
                 if str is "standing":
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 if str is "sitting":
