@@ -59,6 +59,8 @@ class MotionDetect:
         firstFrame = None
         print(self.userID)
 
+        ang1 = -100
+
         # loop over the frames of the video
         while True:
             #print(self.fallDownCheck)
@@ -128,6 +130,14 @@ class MotionDetect:
                 # and update the text
                 (x, y, w, h) = cv2.boundingRect(c)
                 #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                #Rotated Rectangle
+                rect = cv2.minAreaRect(c)
+                ((x1, y1), (x2, y2), ang) = cv2.minAreaRect(c)
+                box = cv2.boxPoints(rect)
+                box = box.astype('int')
+                cv2.drawContours(frame, [box], -1, 7)  # blue
+
                 if self.noObjectFlag is True:
                     self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
 
@@ -138,20 +148,29 @@ class MotionDetect:
                 # user status : sitting / standing / laying
                 if h > 1.3 * w:
                     str = "standing"
+                    ang1 = int(float(ang))
+                    time.sleep(0.5)
                     self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
                     self.fallDownCheck = False
                 else:
                     if w > 1.3 * h:
                         str = "laying"
-                        if self.fallDownCheck is False:
+
+                        ang2 = int(float(ang))
+                        sub_ang = ang1 - ang2
+                        print(self.fallDownCheck," ",ang2, ang1, sub_ang)
+
+                        if self.fallDownCheck is False and sub_ang > 20:
                             self.fallDownCheck = True
                             fallstart = time.time()
+                            print("falldown check start",sub_ang)
 
-                        fallend = time.time()
-                        if fallend - fallstart >= 5:
-                            print("Warning!")
-                            self.fallDownCheck = False
-                            self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
+                        if self.fallDownCheck is True:
+                            fallend = time.time()
+                            if fallend - fallstart >= 5:
+                                print("Warning!")
+                                self.fallDownCheck = False
+                                self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
 
                     else:
                         if w:
