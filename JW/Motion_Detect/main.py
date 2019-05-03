@@ -1,5 +1,7 @@
-import time
+#import time
 from JW.Motion_Detect.motion_detect import MotionDetect
+from JW.util.ReadDeviecID import deviceIDRead
+
 import cv2
 cam = cv2.VideoCapture(0)
 cam.set(3, 1280)  # CV_CAP_PROP_FRAME_WIDTH
@@ -10,8 +12,8 @@ def main():
     #time.sleep(3)
     #NullCamera()
     #MotionDetect(fallDownChecker)
-
-    detect = MotionDetect(cam)
+    deviceID = deviceIDRead()
+    detect = MotionDetect(cam,deviceID)
     detect.ObjectDetector()
 
 
