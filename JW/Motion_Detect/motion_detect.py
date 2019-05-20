@@ -8,16 +8,17 @@ import datetime
 import imutils
 from JW.deviceinfo.DeviceInfoDAO import *
 from JW.userinfo.UserInfoDAO import *
-
+from JW.userOuting.UserOutingDAO import *
 
 class MotionDetect:
 
-    fallDownCheck = False
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--video", help="path to the video file")
     ap.add_argument("-a", "--min-area", type=int, default=2000, help="minimum area size")  # defualt= 500
     args = vars(ap.parse_args())
     noObjectFlag = False
+    fallDownCheck = False
+    outingFlag = False
 
     def __init__(self, cam, deviceID):
         self.ret, self.frame = cam.read()
@@ -85,6 +86,15 @@ class MotionDetect:
                 print("Object MiSS!!!")
                 self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
 
+            # Change 2019/05/15 for 외출 시간 전송
+            if self.outingFlag is False:
+                outingStart = time.time()
+                self.outingFlag = True
+            outingEnd = time.time()
+
+            if outingEnd - outingStart >= 600 and self.outingFlag is True:
+                UserOutingDAO().insertDate(userID=self.userID)
+
             # if the frame could not be grabbed, then we have reached the end
             # of the video
             if frame is None:
@@ -142,6 +152,7 @@ class MotionDetect:
                     self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
 
                 self.noObjectFlag = False
+                self.outingFlag = False # 외출상태 초기화
 
                 text = "Occupied"
 
