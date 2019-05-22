@@ -95,7 +95,6 @@ class MotionDetect:
             if outingEnd - outingStart >= 600 and self.outingFlag is True:
                 if self.indoorFlag is True:
                     UserOutingDAO().insertDate(userID=self.userID)
-                    #self.ser.write("off".encode())
                     self.indoorFlag = False
 
 
