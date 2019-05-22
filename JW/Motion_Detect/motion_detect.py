@@ -48,12 +48,12 @@ class MotionDetect:
         standCount = 0
         sittingCount = 0
         curState = "No"
-        noObjectFlag = False
-        fallDownCheck = False
-        outingFlag = False  # if user is not in home
-        indoorFlag = True  # if user is in home
-        outingCurState = False  # current user state
-        outingPreState = False  # last user state
+        self.noObjectFlag = False
+        self.fallDownCheck = False
+        self.outingFlag = False  # if user is not in home
+        self.indoorFlag = True  # if user is in home
+        self.outingCurState = False  # current user state
+        self.outingPreState = False  # last user state
 
         # loop over the frames of the video
         while True:
