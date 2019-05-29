@@ -13,7 +13,7 @@ from JW.userOuting.UserOutingDAO import *
 
 class MotionDetect:
 
-    #ser = serial.Serial(port="COM12", baudrate=9600)
+    ser = serial.Serial(port="COM12", baudrate=9600)
 
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--video", help="path to the video file")
@@ -50,6 +50,7 @@ class MotionDetect:
         curState = "No"
         self.noObjectFlag = False
         self.fallDownCheck = False
+        missFlag = False
         self.outingFlag = False  # if user is not in home
         self.indoorFlag = True  # if user is in home
         self.outingCurState = False  # current user state
@@ -73,19 +74,17 @@ class MotionDetect:
             # and noObjectFlag is True update mySQL UserMiss
             if end - start >= 3600*8 and self.noObjectFlag is True:
                 print("Object MiSS!!!")
-                self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
-
-            # time to check outing pattern
-            if self.outingFlag is False:
-                outingStart = time.time()
-                self.outingFlag = True
-            outingEnd = time.time()
+                if self.missFlag is False:
+                    self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
+                    self.missFlag = True
 
             # if user is missing for 10 minutes and outingFlag is True
             # and indoorFlag is Ture update mySQL insertDate
-            if outingEnd - outingStart >= 600 and self.outingFlag is True:
+            if end - start >= 10 and self.noObjectFlag is True:  # default 600
                 if self.indoorFlag is True:
                     UserOutingDAO().insertDate(userID=self.userID)
+                    self.userDAO.UpdateUserOut(userID=self.userID, state=1)
+                    self.ser.write("off".encode())
                     self.indoorFlag = False
 
             # if the frame could not be grabbed, then we have reached the end
@@ -223,6 +222,7 @@ class MotionDetect:
             key = cv2.waitKey(1) & 0xFF
             # if the `q` key is pressed, break from the lop
             if key == ord("q"):
+                self.ser.close()
                 break
 
         # cleanup the camera and close any open windows
