@@ -13,17 +13,17 @@ import serial
 
 
 class MotionDetect:
-    #ser = serial.Serial(port="COM12", baudrate=9600)
+    ser = serial.Serial(port="COM12", baudrate=9600)
     fallDownCheck = False
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--video", help="path to the video file")
     ap.add_argument("-a", "--min-area", type=int, default=10000, help="minimum area size")  # defualt= 500
     args = vars(ap.parse_args())
     noObjectFlag = False
+    missFlag = False
     outingFlag = False    #사용자가 집에 나갔을 때 True로 바뀜
     indoorFlag = True     #사용자가 집에 나갔을 때 False로 바뀜
-    outingCurState = False
-    outingPreState = False
+
     def __init__(self, cam, deviceID):
         self.ret, self.frame = cam.read()
         self.deviceID = deviceID
@@ -83,18 +83,17 @@ class MotionDetect:
 
             if end - start >= 6000*8 and self.noObjectFlag is True:
                 print("Object MiSS!!!")
-                self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
+                if self.missFlag is False:
+                    self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
+                    self.missFlag = True
 
-            #Change 2019/05/15 for 외출 시간 전송
-            if self.outingFlag is False:
 
-                outingStart = time.time()
-                self.outingFlag = True
-            outingEnd = time.time()
 
-            if outingEnd - outingStart >= 600 and self.outingFlag is True:
+            if end - start >= 10 and self.noObjectFlag is True:  #default 600
                 if self.indoorFlag is True:
-                    UserOutingDAO().insertDate(userID=self.userID)
+                    #UserOutingDAO().insertDate(userID=self.userID)
+                    #self.userDAO.UpdateUserOut(userID=self.userID, state=1)
+                    self.ser.write("off".encode())
                     self.indoorFlag = False
 
 
@@ -159,90 +158,100 @@ class MotionDetect:
                 #max_area_index = areas.index(max_area)
                 #maxCnt = areas[max_area_index]
                 # if the contour is too small, ignore it
-                if max_area < self.args["min_area"]:
-                    continue
+                if max_area >= self.args["min_area"]:
 
-                # compute the bounding box for the contour, draw it on the frame,
-                # and update the text
-                (x, y, w, h) = cv2.boundingRect(cnts[maxIdx])
-                #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    #continue
+                    # compute the bounding box for the contour, draw it on the frame,
+                    # and update the text
+                    (x, y, w, h) = cv2.boundingRect(cnts[maxIdx])
+                    #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-                '''
-                #Rotated Rectangle
-                rect = cv2.minAreaRect(c)
-                ((x1, y1), (x2, y2), ang) = cv2.minAreaRect(c)
-                box = cv2.boxPoints(rect)
-                box = box.astype('int')
-                cv2.drawContours(frame, [box], -1, 7)  # blue
-                '''
-                #if self.noObjectFlag is True:
-                #    self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
+                    '''
+                    #Rotated Rectangle
+                    rect = cv2.minAreaRect(c)
+                    ((x1, y1), (x2, y2), ang) = cv2.minAreaRect(c)
+                    box = cv2.boxPoints(rect)
+                    box = box.astype('int')
+                    cv2.drawContours(frame, [box], -1, 7)  # blue
+                    '''
+                    #if self.noObjectFlag is True:
+                    #    self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
 
-                #객체 인식, 외출 상태, 돌아온 상태 초기화
-                self.noObjectFlag = False
-                self.outingFlag = False    #외출 상태 초기화
-                self.indoorFlag = True     #돌아온 상태 초기화
-
-
-                text = "Occupied"
-                preState = curState
-                print("현재 상태 :")
-                print(preState)
-                str = "null"
-                # user status : sitting / standing / laying
-                if h > 1.3 * w:
-                    str = "standing"
-                    standCount += 1
-                    sittingCount = 0
-                    print("Stand Count :", standCount)
-                    if standCount >= 100:
-                        curState = "standing"
-                    #ang1 = int(float(ang))
-                    #time.sleep(0.5)
-                    self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
-                    self.fallDownCheck = False
-                elif w > 1.3 * h:
-                    if preState != "No" and preState == "standing":
-                        str = "laying"
-
-                        #ang2 = int(float(ang))
-                        #sub_ang = ang1 - ang2
-                        #print(self.fallDownCheck," ",ang2, ang1, sub_ang)
-
-                        if self.fallDownCheck is False: #and sub_ang > 20:
-                            self.fallDownCheck = True
-                            fallstart = time.time()
-                            #print("falldown check start",sub_ang)
-
-                        if self.fallDownCheck is True:
-                            fallend = time.time()
-                            if fallend - fallstart >= 5:
-                                print("Warning!")
-                                self.fallDownCheck = False
-                                self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
-                    elif preState == "sitting":
-                        str = "sleep"
-                elif h <= 1.3 * w and w <= 1.3 * h:
-                    self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
-                    self.fallDownCheck = False
-                    str = "sitting"
-                    standCount = 0
-                    sittingCount += 1
-                    if sittingCount >= 100:
-                        curState = "sitting"
-                    print("Sitting Count :", sittingCount)
-
-                if str is "standing":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                if str is "sitting":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                if str is "laying":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-                if str is "sleep":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 0), 2)
+                    if self.indoorFlag is False:
+                        self.userDAO.UpdateUserOut(userID=self.userID, state=0)
+                        self.ser.write("on".encode())
 
 
-                cv2.putText(frame, str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    #객체 인식, 외출 상태, 돌아온 상태 초기화
+                    self.noObjectFlag = False
+                    self.missFlag = False
+                    self.outingFlag = False    #외출 상태 초기화
+                    self.indoorFlag = True     #돌아온 상태 초기화
+
+
+
+                    text = "Occupied"
+                    preState = curState
+                    print("현재 상태 :")
+                    print(preState)
+                    str = "null"
+                    # user status : sitting / standing / laying
+                    if h > 1.3 * w:
+                        str = "standing"
+                        standCount += 1
+                        sittingCount = 0
+                        print("Stand Count :", standCount)
+                        if standCount >= 100:
+                            curState = "standing"
+                        if preState != curState:
+                            self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
+                        self.fallDownCheck = False
+                    elif w > 1.3 * h:
+                        if preState != "No" and preState == "standing":
+                            str = "laying"
+
+                            #ang2 = int(float(ang))
+                            #sub_ang = ang1 - ang2
+                            #print(self.fallDownCheck," ",ang2, ang1, sub_ang)
+
+                            if self.fallDownCheck is False: #and sub_ang > 20:
+                                self.fallDownCheck = True
+                                fallstart = time.time()
+                                #print("falldown check start",sub_ang)
+
+                            if self.fallDownCheck is True:
+                                fallend = time.time()
+                                if fallend - fallstart >= 5:
+                                    print("Warning!")
+                                    self.fallDownCheck = False
+                                    self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
+                                    curState = "laying"
+                        elif preState == "sitting":
+                            str = "sleep"
+                            curState = "sleep"
+                    elif h <= 1.3 * w and w <= 1.3 * h:
+
+                        str = "sitting"
+                        standCount = 0
+                        sittingCount += 1
+                        if sittingCount >= 100:
+                            curState = "sitting"
+                        if curState != preState:
+                            self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
+                            self.fallDownCheck = False
+                        print("Sitting Count :", sittingCount)
+
+                    if str is "standing":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    if str is "sitting":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                    if str is "laying":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                    if str is "sleep":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 0), 2)
+
+
+                    cv2.putText(frame, str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
             # draw the text and timestamp on the frame
             cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
@@ -258,6 +267,7 @@ class MotionDetect:
             key = cv2.waitKey(1) & 0xFF
             # if the `q` key is pressed, break from the lop
             if key == ord("q"):
+                self.ser.close()
                 break
 
         # cleanup the camera and close any open windows

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/SilverProtector.iml" filepath="$PROJECT_DIR$/.idea/SilverProtector.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../SmartForkLiftService/.idea/SmartForkLiftService.iml" filepath="$PROJECT_DIR$/../SmartForkLiftService/.idea/SmartForkLiftService.iml" />
     </modules>
   </component>
 </project>

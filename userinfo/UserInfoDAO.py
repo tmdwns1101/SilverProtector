@@ -1,5 +1,6 @@
 import pymysql
 from util.DataBaseConn import DBAccessMerial
+from datetime import datetime
 
 class UserInfoDAO:
     name = "UserInfoDAO"
@@ -138,6 +139,29 @@ class UserInfoDAO:
                     conn.close()
             except Exception as e:
                     print(e)
+
+    def UpdateUserOut(self, userID, state):
+        sql = "update userInfo set userOut = %s, userOutTime = %s where userID = %s"
+        host, user, password, db = DBAccessMerial()
+        conn = pymysql.connect(host=host, user=user, password=password, db=db, charset='utf8')
+        # print("userID : ", userID)
+        # print("state : ", state)
+        try:
+            curs = conn.cursor()
+            curs.execute(sql, (state, datetime.now(), userID))
+            conn.commit()
+
+
+        except Exception as e:
+            print(e)
+            print("DB 오류")
+            return -1
+        finally:
+            try:
+                if conn.open is True:
+                    conn.close()
+            except Exception as e:
+                print(e)
 
 
 
