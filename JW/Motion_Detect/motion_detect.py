@@ -132,84 +132,83 @@ class MotionDetect:
                 max_area = max(areas or [0])
 
                 # if the contour is too small, ignore it
-                if max_area < self.args["min_area"]:
-                    continue
+                if max_area > self.args["min_area"]:
 
-                # compute the bounding box for the contour, draw it on the frame,
-                (x, y, w, h) = cv2.boundingRect(cnts[maxIdx])
+                    # compute the bounding box for the contour, draw it on the frame,
+                    (x, y, w, h) = cv2.boundingRect(cnts[maxIdx])
 
-                # contours is capturing something, update text and state
-                # reset noObject, outing, indoor flag and str
-                text = "Occupied"
-                preState = curState
-                print("current state :")
-                print(preState)
-                str = "null"
-                self.noObjectFlag = False
-                self.outingFlag = False
-                self.indoorFlag = True
+                    # contours is capturing something, update text and state
+                    # reset noObject, outing, indoor flag and str
+                    text = "Occupied"
+                    preState = curState
+                    print("current state :")
+                    print(preState)
+                    str = "null"
+                    self.noObjectFlag = False
+                    self.outingFlag = False
+                    self.indoorFlag = True
 
-                # user status : sitting / standing / Fall down / sleep
-                # accumulate stand count and if stand count is more than
-                # 100, update current state
-                # reset fallDownCheck and mySQL UserFallDown
-                if h > 1.3 * w:
-                    str = "standing"
-                    standCount += 1
-                    sittingCount = 0
-                    print("Stand Count :", standCount)
-                    if standCount >= 100:
-                        curState = "standing"
-                    self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
-                    self.fallDownCheck = False
-
-                # if wide is longer than height and preState is standing
-                elif w > 1.3 * h:
-                    if preState != "No" and preState == "standing":
-                        str = "Fall Down"
-
-                    # measure time and if user is laying more than 5 sec
-                    # update fallDownCheck and mySQl UserFalldown
-                    if self.fallDownCheck is False:
-                        self.fallDownCheck = True
-                        fallstart = time.time()
-                    if self.fallDownCheck is True:
-                        fallend = time.time()
-                        if fallend - fallstart >= 5:
-                            print("Warning!")
-                            self.fallDownCheck = False
-                            self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
-
-                    # if wide is longer than height and preState is sitting
-                    # set str sleep
-                    elif preState == "sitting":
-                        str = "sleep"
-
-                # if wide and height are similar
-                # reset fallDownCheck and mySQL UserFallDown
-                elif h <= 1.3 * w and w <= 1.3 * h:
-                    self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
-                    self.fallDownCheck = False
-                    str = "sitting"
-
-                    # accumulate stand count and if sitting count is more than
+                    # user status : sitting / standing / Fall down / sleep
+                    # accumulate stand count and if stand count is more than
                     # 100, update current state
-                    standCount = 0
-                    sittingCount += 1
-                    if sittingCount >= 100:
-                        curState = "sitting"
-                    print("Sitting Count :", sittingCount)
+                    # reset fallDownCheck and mySQL UserFallDown
+                    if h > 1.3 * w:
+                        str = "standing"
+                        standCount += 1
+                        sittingCount = 0
+                        print("Stand Count :", standCount)
+                        if standCount >= 100:
+                            curState = "standing"
+                        self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
+                        self.fallDownCheck = False
 
-                # make frame for different color and put text str
-                if str is "standing":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                if str is "sitting":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                if str is "Fall Down":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-                if str is "sleep":
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 0), 2)
-                cv2.putText(frame, str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    # if wide is longer than height and preState is standing
+                    elif w > 1.3 * h:
+                        if preState != "No" and preState == "standing":
+                            str = "Fall Down"
+
+                        # measure time and if user is laying more than 5 sec
+                        # update fallDownCheck and mySQl UserFalldown
+                        if self.fallDownCheck is False:
+                            self.fallDownCheck = True
+                            fallstart = time.time()
+                        if self.fallDownCheck is True:
+                            fallend = time.time()
+                            if fallend - fallstart >= 5:
+                                print("Warning!")
+                                self.fallDownCheck = False
+                                self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
+
+                        # if wide is longer than height and preState is sitting
+                        # set str sleep
+                        elif preState == "sitting":
+                            str = "sleep"
+
+                    # if wide and height are similar
+                    # reset fallDownCheck and mySQL UserFallDown
+                    elif h <= 1.3 * w and w <= 1.3 * h:
+                        self.userDAO.UpdateUserFallDown(userID=self.userID, state=0)
+                        self.fallDownCheck = False
+                        str = "sitting"
+
+                        # accumulate stand count and if sitting count is more than
+                        # 100, update current state
+                        standCount = 0
+                        sittingCount += 1
+                        if sittingCount >= 100:
+                            curState = "sitting"
+                        print("Sitting Count :", sittingCount)
+
+                    # make frame for different color and put text str
+                    if str is "standing":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    if str is "sitting":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                    if str is "Fall Down":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                    if str is "sleep":
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 0), 2)
+                    cv2.putText(frame, str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
             # draw the text and timestamp on the frame
             cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
