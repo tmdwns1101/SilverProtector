@@ -13,7 +13,7 @@ import serial
 
 
 class MotionDetect:
-    ser = serial.Serial(port="COM12", baudrate=9600)
+    #ser = serial.Serial(port="COM12", baudrate=9600)
     fallDownCheck = False
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--video", help="path to the video file")
@@ -23,6 +23,14 @@ class MotionDetect:
     missFlag = False
     outingFlag = False    #사용자가 집에 나갔을 때 True로 바뀜
     indoorFlag = True     #사용자가 집에 나갔을 때 False로 바뀜
+    count_frame = 0
+    frame_flow = 90
+    alpha = 0.1
+    beta = (1.0 - alpha)
+    curFrameVal = 0
+    preFrameVal = 0
+    imControlFlag = False
+    controlDiff = 20       #이 값이 전 프레임과 현재 프레임
 
     def __init__(self, cam, deviceID):
         self.ret, self.frame = cam.read()
@@ -84,7 +92,7 @@ class MotionDetect:
             if end - start >= 6000*8 and self.noObjectFlag is True:
                 print("Object MiSS!!!")
                 if self.missFlag is False:
-                    self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
+                    #self.userDAO.UpdateUserMiss(userID=self.userID, state=1)
                     self.missFlag = True
 
 
@@ -93,7 +101,7 @@ class MotionDetect:
                 if self.indoorFlag is True:
                     #UserOutingDAO().insertDate(userID=self.userID)
                     #self.userDAO.UpdateUserOut(userID=self.userID, state=1)
-                    self.ser.write("off".encode())
+                    #self.ser.write("off".encode())
                     self.indoorFlag = False
 
 
@@ -123,13 +131,41 @@ class MotionDetect:
             # thresh changed 25 -> 75 because of light dilation
 
 
+            #firstFrame = cv2.addWeighted(gray, self.alpha, firstFrame, self.beta, 0.0)
+
+            '''
+            if self.count_frame < self.frame_flow:
+                self.count_frame += 1
+                print("calibration :", self.count_frame)
+                continue
+            '''
+
+
             #This is orgin code
             frameDelta = cv2.absdiff(firstFrame, gray)
-            
+
+            #test code 19.05.30
+            print("전 프레임 값: ", self.preFrameVal)
+            self.curFrameVal = cv2.mean(frameDelta)[0]
+            print("현재 프레임 값: ", self.curFrameVal)
+            if abs(self.curFrameVal - (self.preFrameVal)) > self.controlDiff or self.imControlFlag is True:
+                firstFrame = cv2.addWeighted(gray, self.alpha, firstFrame, self.beta, 0.0)
+                self.imControlFlag = True
+                if self.count_frame < self.frame_flow:
+                    self.count_frame += 1
+                    print("calibration :", self.count_frame)
+                    continue
+            self.count_frame = 0
+            self.imControlFlag = False
+            self.preFrameVal = self.curFrameVal
+
+            #test end
+
             # dilate the thresholded image to fill in holes, then find contours
             # on thresholded image
             thresh = cv2.threshold(frameDelta, 60, 255, cv2.THRESH_BINARY)[1]
             thresh = cv2.dilate(thresh, None, iterations=4)
+
 
 
 
@@ -155,32 +191,23 @@ class MotionDetect:
                 max_area = max(areas or [0])
 
 
-                #max_area_index = areas.index(max_area)
-                #maxCnt = areas[max_area_index]
+
                 # if the contour is too small, ignore it
                 if max_area >= self.args["min_area"]:
-
-                    #continue
                     # compute the bounding box for the contour, draw it on the frame,
                     # and update the text
+
                     (x, y, w, h) = cv2.boundingRect(cnts[maxIdx])
-                    #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
 
                     '''
-                    #Rotated Rectangle
-                    rect = cv2.minAreaRect(c)
-                    ((x1, y1), (x2, y2), ang) = cv2.minAreaRect(c)
-                    box = cv2.boxPoints(rect)
-                    box = box.astype('int')
-                    cv2.drawContours(frame, [box], -1, 7)  # blue
-                    '''
-                    #if self.noObjectFlag is True:
-                    #    self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
+                    if self.noObjectFlag is True:
+                        self.userDAO.UpdateUserMiss(userID=self.userID, state=0)
 
                     if self.indoorFlag is False:
                         self.userDAO.UpdateUserOut(userID=self.userID, state=0)
                         self.ser.write("on".encode())
-
+                    '''
 
                     #객체 인식, 외출 상태, 돌아온 상태 초기화
                     self.noObjectFlag = False
@@ -192,9 +219,8 @@ class MotionDetect:
 
                     text = "Occupied"
                     preState = curState
-                    print("현재 상태 :")
-                    print(preState)
-                    str = "null"
+                    print("현재 상태 : ", preState)
+                    str = ""
                     # user status : sitting / standing / laying
                     if h > 1.3 * w:
                         str = "standing"
@@ -225,10 +251,10 @@ class MotionDetect:
                                     print("Warning!")
                                     self.fallDownCheck = False
                                     self.userDAO.UpdateUserFallDown(userID=self.userID, state=1)
-                                    curState = "laying"
+                                    #curState = "laying"
                         elif preState == "sitting":
                             str = "sleep"
-                            curState = "sleep"
+                            #curState = "sleep"
                     elif h <= 1.3 * w and w <= 1.3 * h:
 
                         str = "sitting"
@@ -255,8 +281,7 @@ class MotionDetect:
             # draw the text and timestamp on the frame
             cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-            #cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10),
-            #            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+
             # show the frame and record if the user presses a key
             cv2.imshow("Security Feed", frame)
             cv2.imshow("Thresh", thresh)
@@ -267,7 +292,7 @@ class MotionDetect:
             key = cv2.waitKey(1) & 0xFF
             # if the `q` key is pressed, break from the lop
             if key == ord("q"):
-                self.ser.close()
+                #self.ser.close()
                 break
 
         # cleanup the camera and close any open windows
