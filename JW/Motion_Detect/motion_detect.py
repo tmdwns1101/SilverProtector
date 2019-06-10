@@ -38,7 +38,6 @@ class MotionDetect:
         else:
             vs = cv2.VideoCapture(self.args["video"])
             frame = vs.read()
-            avg1 = np.float32(frame)
 
         # initialize the first frame in the video stream
         firstFrame = None
@@ -55,6 +54,14 @@ class MotionDetect:
         self.indoorFlag = True  # if user is in home
         self.outingCurState = False  # current user state
         self.outingPreState = False  # last user state
+        self.count_frame = 0
+        self.frame_flow = 90
+        self.alpha = 0.1
+        self.beta = (1.0 - self.alpha)
+        self.curFrameVal = 0
+        self.preFrameVal = 0
+        self.imControlFlag = False
+        self.controlDiff = 20  # 이 값이 전 프레임과 현재 프레임
 
         # loop over the frames of the video
         while True:
@@ -107,6 +114,27 @@ class MotionDetect:
             # compute the absolute difference between the current frame and
             # first frame
             frameDelta = cv2.absdiff(firstFrame, gray)
+
+            # test code turn on/off
+            print("전 프레임 값: ", self.preFrameVal)
+            self.curFrameVal = cv2.mean(frameDelta)[0]
+            print("현재 프레임 값: ", self.curFrameVal)
+            print("imControlFlag : ",self.imControlFlag," indoorFlag : ",self.indoorFlag)
+            if abs(self.curFrameVal - (self.preFrameVal)) > self.controlDiff or self.imControlFlag is True:
+                print("img control start")
+                firstFrame = cv2.addWeighted(gray, self.alpha, firstFrame, self.beta, 0.0)
+                self.imControlFlag = True
+            if self.imControlFlag is True and self.indoorFlag is True:
+                firstFrame = cv2.addWeighted(gray, self.alpha, firstFrame, self.beta, 0.0)
+            if self.imControlFlag is True and self.indoorFlag is False:
+                firstFrame = gray
+                self.imControlFlag = False
+                print("FirstFrame changed")
+
+            self.count_frame = 0
+            self.preFrameVal = self.curFrameVal
+            # test end
+
             thresh = cv2.threshold(frameDelta, 60, 255, cv2.THRESH_BINARY)[1]
 
             # dilate the thresholded image to fill in holes, then find contours
@@ -140,9 +168,8 @@ class MotionDetect:
                     # reset noObject, outing, indoor flag and str
                     text = "Occupied"
                     preState = curState
-                    print("current state :")
-                    print(preState)
-                    str = "null"
+                    print("현재 상태 : ", preState)
+                    str = ""
                     self.noObjectFlag = False
                     self.outingFlag = False
                     self.indoorFlag = True
